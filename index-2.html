@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Inventario</title>
+  <style>
+    body {
+      background-color: #91C5FB;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid black;
+      padding: 8px;
+      text-align: left;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+
+    /* Estilo para el footer */
+    footer {
+      background-color: black;
+      color: white;
+      text-align: center;
+      padding: 5px;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h2>Control de Inventario</h2>
+
+  <table id="inventoryTable">
+    <tr>
+      <th>ID (Código de Barras)</th>
+      <th>Articulo</th>
+      <th>Precio Normal</th>
+      <th>Precio Cliente</th>
+      <th>Cantidad Inicial</th>
+      <th>Cantidad Restante</th>
+      <th>Cantidades Vendidas</th>
+      <th>Proveedor</th>
+      <th>Acciones</th>
+    </tr>
+  </table>
+
+  <button onclick="openAddForm()">Agregar Articulo</button>
+  <button onclick="resetTable()">Reiniciar Tabla</button>
+
+  <div id="addForm" style="display: none;">
+    <h3>Agregar Articulo</h3>
+    <label for="itemName">Articulo:</label>
+    <br>
+    <input type="text" id="itemName" name="itemName">
+    <br>
+    <label for="itemPrice">Precio Normal:</label>
+    <br>
+    <input type="text" id="itemPrice" name="itemPrice">
+    <br>
+    <label for="itemPrice2">Precio Cliente:</label>
+    <br>
+    <input type="text" id="itemPrice2" name="itemPrice2">
+    <br>
+    <label for="itemInitialQty">Cantidad Inicial:</label>
+    <br>
+    <input type="text" id="itemInitialQty" name="itemInitialQty">
+    <br>
+    <label for="itemRemainingQty">Cantidad Restante:</label>
+    <br>
+    <input type="text" id="itemRemainingQty" name="itemRemainingQty">
+    <br>
+    <label for="itemAvailableQty">Cantidades Vendidas:</label>
+    <br>
+    <input type="text" id="itemAvailableQty" name="itemAvailableQty">
+    <br>
+    <label for="itemProvider">Proveedor:</label>
+    <br>
+    <input type="text" id="itemProvider" name="itemProvider">
+    <br>
+    <br>
+    <button onclick="addItem()">Agregar</button>
+    <button onclick="closeAddForm()">Cancelar</button>
+  </div>
+
+  <footer>
+      <p>Copyright: <span>© <script>document.write(new Date().getFullYear())</script></span> | v3.0 | Created by KimyCompany</p>  
+  </footer>
+
+  <script>
+    // Solicitar clave de acceso al intentar abrir la consola
+    document.onkeydown = function (event) {
+      event = event || window.event;
+      if (event.keyCode === 123) {
+        var accessKey = prompt("Ingrese la clave de acceso para abrir la consola:");
+
+        // Verificar si la clave es correcta
+        if (accessKey !== "Admin-Kimy/Eunji/OwO") { //puedes modificar la clave a tu gusto para entrar a la consola 
+          console.log("tu clave aqui");
+          return false;
+        }
+      }
+    };
+
+    // Solicitar clave de acceso al intentar abrir el menú contextual (clic derecho)
+    document.oncontextmenu = function (event) {
+      var accessKey = prompt("Ingrese la clave de acceso para abrir el menú contextual:");
+
+      // Verificar si la clave es correcta
+      if (accessKey !== "Admin-Kimy/Eunji/OwO") { //puedes modificar la clave a tu gusto para entrar al menú contextual
+        console.log("Acceso denegado");
+        return false;
+      }
+    };
+
+      // Solicitar clave de acceso al intentar abrir las herramientas de desarrollo (Ctrl + Shift + I)
+    document.addEventListener('keydown', function(event) {
+    if (event.ctrlKey && event.shiftKey && event.keyCode === 73) {
+    var accessKey = prompt("Ingrese la clave de acceso para abrir las herramientas de desarrollo:");
+
+    // Verificar si la clave es correcta
+    if (accessKey !== "Admin-Kimy/Eunji/OwO") {
+      console.log("Acceso denegado");
+      event.preventDefault(); // Evitar que las herramientas de desarrollo se abran
+      return false;
+    }
+    }
+    });
+    
+    var db;
+    var barcodeCounter;
+
+    if (localStorage.getItem("barcodeCounter")) {
+      barcodeCounter = parseInt(localStorage.getItem("barcodeCounter"));
+    } else {
+      barcodeCounter = 1;
+    }
+
+    var request = indexedDB.open("inventoryDB", 1);
+
+    request.onerror = function(event) {
+      console.log("Error al abrir la base de datos:", event.target.errorCode);
+    };
+
+    request.onsuccess = function(event) {
+      db = event.target.result;
+      displayData();
+    };
+
+    request.onupgradeneeded = function(event) {
+      var db = event.target.result;
+      var objectStore = db.createObjectStore("inventory", { keyPath: "barcode" });
+      objectStore.createIndex("Articulo", "Articulo", { unique: false });
+      objectStore.createIndex("Precio_Normal", "Precio_Normal", { unique: false });
+      objectStore.createIndex("Precio_Cliente", "Precio_Cliente", { unique: false });
+      objectStore.createIndex("Cantidad_Inicial", "Cantidad_Inicial", { unique: false });
+      objectStore.createIndex("Cantidad_Restante", "Cantidad_Restante", { unique: false });
+      objectStore.createIndex("Cantidades_Vendidas", "Cantidades_Vendidas", { unique: false });
+      objectStore.createIndex("proveedor", "proveedor", { unique: false });
+    };
+
+    function openAddForm() {
+      document.getElementById("addForm").style.display = "block";
+    }
+
+    function closeAddForm() {
+      document.getElementById("addForm").style.display = "none";
+    }
+
+    function generateBarcode() {
+      localStorage.setItem("barcodeCounter", ++barcodeCounter);
+      return "CB" + barcodeCounter;
+    }
+
+    function addItem() {
+      var transaction = db.transaction(["inventory"], "readwrite");
+      var objectStore = transaction.objectStore("inventory");
+      var itemName = document.getElementById("itemName").value;
+      var itemPrice = document.getElementById("itemPrice").value;
+      var itemPrice2 = document.getElementById("itemPrice2").value;
+      var itemInitialQty = document.getElementById("itemInitialQty").value;
+      var itemRemainingQty = document.getElementById("itemRemainingQty").value;
+      var itemAvailableQty = document.getElementById("itemAvailableQty").value;
+      var itemProvider = document.getElementById("itemProvider").value;
+
+      var newItem = {
+        barcode: generateBarcode(),
+        Articulo: itemName,
+        Precio_Normal: itemPrice,
+        Precio_Cliente: itemPrice2,
+        Cantidad_Inicial: itemInitialQty,
+        Cantidad_Restante: itemRemainingQty,
+        Cantidades_Vendidas: itemAvailableQty,
+        proveedor: itemProvider
+      };
+
+      var request = objectStore.add(newItem);
+
+      request.onsuccess = function(event) {
+        console.log("Articulo agregado con Código de Barras: " + newItem.barcode);
+        closeAddForm();
+        displayData();
+      };
+
+      request.onerror = function(event) {
+        console.log("Error al agregar el articulo:", event.target.error);
+      };
+    }
+
+    function displayData() {
+      var objectStore = db.transaction("inventory").objectStore("inventory");
+
+      var table = document.getElementById("inventoryTable");
+      table.innerHTML = "<tr><th>ID (Código de Barras)</th><th>Articulo</th><th>Precio Normal</th><th>Precio Cliente</th><th>Cantidad Inicial</th><th>Cantidad Restante</th><th>Cantidades Vendidas</th><th>Proveedor</th><th>Acciones</th></tr>";
+
+      objectStore.openCursor().onsuccess = function(event) {
+        var cursor = event.target.result;
+        if (cursor) {
+          var row = table.insertRow(-1);
+          var cell1 = row.insertCell(0);
+          var cell2 = row.insertCell(1);
+          var cell3 = row.insertCell(2);
+          var cell4 = row.insertCell(3);
+          var cell5 = row.insertCell(4);
+          var cell6 = row.insertCell(5);
+          var cell7 = row.insertCell(6);
+          var cell8 = row.insertCell(7);
+          var cell9 = row.insertCell(8);
+
+          cell1.textContent = cursor.value.barcode;
+          cell2.textContent = cursor.value.Articulo;
+          cell3.textContent = cursor.value.Precio_Normal;
+          cell4.textContent = cursor.value.Precio_Cliente;
+          cell5.textContent = cursor.value.Cantidad_Inicial;
+          cell6.textContent = cursor.value.Cantidad_Restante;
+          cell7.textContent = cursor.value.Cantidades_Vendidas;
+          cell8.textContent = cursor.value.proveedor;
+          cell9.innerHTML = '<button onclick="deleteItem(\'' + cursor.value.barcode + '\')">Eliminar</button>';
+
+          cursor.continue();
+        }
+      };
+    }
+
+    function deleteItem(barcode) {
+      var transaction = db.transaction(["inventory"], "readwrite");
+      var objectStore = transaction.objectStore("inventory");
+      var request = objectStore.delete(barcode);
+
+      request.onsuccess = function(event) {
+        console.log("Articulo con Código de Barras " + barcode + " eliminado");
+        displayData();
+      };
+    }
+
+    function resetTable() {
+      var transaction = db.transaction(["inventory"], "readwrite");
+      var objectStore = transaction.objectStore("inventory");
+      var request = objectStore.clear();
+
+      request.onsuccess = function(event) {
+        console.log("Tabla reiniciada");
+        displayData();
+      };
+    }
+  </script>
+</body>
+</html>
